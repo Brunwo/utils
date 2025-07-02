@@ -3,12 +3,12 @@ Installation & Usage
 As a Git Hook:
 
 # Copy to your repository
-cp script.sh .git/hooks/pre-commit
+cp git_sensitive_data_hook.sh .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 
 
 As a Standalone Script:
-./script.sh --action=warn
+./git_sensitive_data_hook.sh --action=warn
 
 Environment Configuration:
 export SENSITIVE_DATA_ACTION=warn
