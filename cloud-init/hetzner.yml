@@ -1,0 +1,33 @@
+#cloud-config
+users:
+  - name: bruno
+    groups: users, admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDR8b53liUwhsbdab95BHnk00lAY4jevJbMl4kj8LpT4XWNOr1h6fS0uNCSsFIGBvdMxRaZD0uOiIPCiL1n5fxLfR0V0ReAa8A8uPjGZvjrfJ+numLmdJPiargnxZE6yaUJTOexPzs97u418PCnhZdmuOGGnqCq33NQjSVWYia6EWIOklSef2IN23JtKCN7OuHNfSN33ygmnbQ60y5UvZNM/6aFAsCbTlENqnqpnVmkpWOs4NQFyamMCQCFmqXp6La6TbXcLuujKjCQPEV51A+7/F30WktrRMdIilGa8JWECBynP6r3g/NxUQ13qbjZmRb4k2Szk468Kef7vMvIN4dr3czJYjhYMWok/gYe7IFUAvA5Xt4wkXxgoRuPxPnVj6UGIdpstNvP67k0aRKqLruNEJv45QgDpaNYCR4sJc2fQ/eQ9swQcI0xvRXHLWTfmtHNbskX27itaWe144aAhSF48HBaBD3S1LKNZXnyHaaNamTpBYZ3AsJNxcNXSAEuyB259XPj8mu02srFx/I7Gu4xNKEvhY+rJWxzPnBYlr6WN9wSHdg916pRjk/4hb7nUrzjUCIVsbJRmMTiNs3IAyigLSA+fxQSDAVuu0YScn/cAkFCg5BepjKjder3K6Kgm0WQWvUDBgftWWSJmujJFe0xHgYPI+JJj6icsZFQz+WKNQ== bruno@bruno-dell
+packages:
+  - fail2ban
+  - ufw
+package_update: true
+package_upgrade: true
+write_files:
+  - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      Port 2222
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      MaxAuthTries 2
+      AllowTcpForwarding no
+      X11Forwarding no
+      AllowAgentForwarding no
+      AuthorizedKeysFile .ssh/authorized_keys
+      AllowUsers bruno
+runcmd:
+  - printf "[sshd]\nenabled = true\nport = ssh, 2222\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
+  - systemctl enable fail2ban
+  - ufw allow 2222
+  - ufw enable
+  - reboot

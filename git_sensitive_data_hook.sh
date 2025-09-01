@@ -154,65 +154,142 @@ detect_sensitive_patterns() {
     # Check for common secret patterns
     if [[ "$CHECK_SECRETS" == "true" ]]; then
         # Environment variables with suspicious names
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Environment variable with suspicious name")
-        done < <(echo "$content" | grep -n -E "(PASSWORD|SECRET|KEY|TOKEN|API_KEY|PRIVATE)" | cut -d: -f1)
-        
-        # Base64 encoded strings (longer than 20 chars)
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Possible base64 encoded secret")
-        done < <(echo "$content" | grep -n -E "[A-Za-z0-9+/]{20,}={0,2}" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: Environment variable with suspicious name -> $line_content")
+                else
+                    issues+=("Line $line_num: Environment variable with suspicious name")
+                fi
+            fi
+        done < <(echo "$content" | grep -n -E "(PASSWORD|SECRET|KEY|TOKEN|API_KEY|PRIVATE)")
+    fi
+    
+    # Base64 encoded strings (improved detection, excluding URLs)
+    if [[ "$CHECK_BASE64" == "true" ]]; then
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                # Skip if it looks like a URL or has common non-secret patterns
+                if [[ ! "$line_content" =~ (https?://|data:|src=|href=|url\() ]]; then
+                    if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                        issues+=("Line $line_num: Possible base64 encoded secret -> $line_content")
+                    else
+                        issues+=("Line $line_num: Possible base64 encoded secret")
+                    fi
+                fi
+            fi
+        done < <(echo "$content" | grep -n -E "[A-Za-z0-9+/]{${BASE64_MIN_LENGTH},}={0,2}")
     fi
     
     # Check for password patterns
     if [[ "$CHECK_PASSWORDS" == "true" ]]; then
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Hardcoded password detected")
-        done < <(echo "$content" | grep -n -iE "(password\s*[=:]\s*['\"][^'\"]{3,})" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: Hardcoded password detected -> $line_content")
+                else
+                    issues+=("Line $line_num: Hardcoded password detected")
+                fi
+            fi
+        done < <(echo "$content" | grep -n -iE "(password\s*[=:]\s*['\"][^'\"]{3,})")
     fi
     
     # Check custom patterns
     if [[ "$CHECK_CUSTOM_PATTERNS" == "true" ]]; then
         for pattern in "${CUSTOM_PATTERNS[@]}"; do
-            while IFS= read -r line_num; do
-                [[ -n "$line_num" ]] && issues+=("Line $line_num: Custom pattern detected: $pattern")
-            done < <(echo "$content" | grep -n -E "$pattern" | cut -d: -f1)
+            while IFS= read -r line_info; do
+                if [[ -n "$line_info" ]]; then
+                    local line_num=$(echo "$line_info" | cut -d: -f1)
+                    local line_content=$(echo "$line_info" | cut -d: -f2-)
+                    if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                        issues+=("Line $line_num: Custom pattern detected -> $line_content")
+                    else
+                        issues+=("Line $line_num: Custom pattern detected: $pattern")
+                    fi
+                fi
+            done < <(echo "$content" | grep -n -E "$pattern")
         done
     fi
     
     # Check for API keys
     if [[ "$CHECK_API_KEYS" == "true" ]]; then
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Possible API key")
-        done < <(echo "$content" | grep -n -iE "(api[_-]?key\s*[=:]\s*['\"][^'\"]{10,})" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: Possible API key -> $line_content")
+                else
+                    issues+=("Line $line_num: Possible API key")
+                fi
+            fi
+        done < <(echo "$content" | grep -n -iE "(api[_-]?key\s*[=:]\s*['\"][^'\"]{10,})")
     fi
     
     # Check for tokens
     if [[ "$CHECK_TOKENS" == "true" ]]; then
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Possible token")
-        done < <(echo "$content" | grep -n -iE "(token\s*[=:]\s*['\"][^'\"]{10,})" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: Possible token -> $line_content")
+                else
+                    issues+=("Line $line_num: Possible token")
+                fi
+            fi
+        done < <(echo "$content" | grep -n -iE "(token\s*[=:]\s*['\"][^'\"]{10,})")
     fi
     
     # Check for private keys
     if [[ "$CHECK_CERTIFICATES" == "true" ]]; then
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Private key detected")
-        done < <(echo "$content" | grep -n "BEGIN.*PRIVATE KEY" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: Private key detected -> $line_content")
+                else
+                    issues+=("Line $line_num: Private key detected")
+                fi
+            fi
+        done < <(echo "$content" | grep -n "BEGIN.*PRIVATE KEY")
     fi
     
     # Check for email addresses (might be sensitive in some contexts)
     if [[ "$CHECK_EMAILS" == "true" ]]; then
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: Email address detected")
-        done < <(echo "$content" | grep -n -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: Email address detected -> $line_content")
+                else
+                    issues+=("Line $line_num: Email address detected")
+                fi
+            fi
+        done < <(echo "$content" | grep -n -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
     fi
     
     # Check for IP addresses
     if [[ "$CHECK_IPS" == "true" ]]; then
-        while IFS= read -r line_num; do
-            [[ -n "$line_num" ]] && issues+=("Line $line_num: IP address detected")
-        done < <(echo "$content" | grep -n -E "([0-9]{1,3}\.){3}[0-9]{1,3}" | cut -d: -f1)
+        while IFS= read -r line_info; do
+            if [[ -n "$line_info" ]]; then
+                local line_num=$(echo "$line_info" | cut -d: -f1)
+                local line_content=$(echo "$line_info" | cut -d: -f2-)
+                if [[ "$SHOW_LINE_CONTENT" == "true" ]]; then
+                    issues+=("Line $line_num: IP address detected -> $line_content")
+                else
+                    issues+=("Line $line_num: IP address detected")
+                fi
+            fi
+        done < <(echo "$content" | grep -n -E "([0-9]{1,3}\.){3}[0-9]{1,3}")
     fi
     
     # Print issues
@@ -348,26 +425,40 @@ if [[ "$FOUND_ISSUES" == "true" ]]; then
     case "$ACTION_MODE" in
         "warn")
             echo -e "${YELLOW}⚠️  WARNING: Sensitive data detected in staged files, but allowing commit.${NC}"
-            echo -e "${YELLOW}Files with issues: ${FILES_WITH_ISSUES[*]}${NC}"
+            echo -e "${YELLOW}Files with issues:${NC}"
+            for file in "${FILES_WITH_ISSUES[@]}"; do
+                echo -e "${YELLOW}  - $file${NC}"
+            done
             exit 0
             ;;
         "block")
             echo -e "${RED}❌ COMMIT BLOCKED: Sensitive data detected in staged files.${NC}"
-            echo -e "${RED}Files with issues: ${FILES_WITH_ISSUES[*]}${NC}"
+            echo -e "${RED}Files with issues:${NC}"
+            for file in "${FILES_WITH_ISSUES[@]}"; do
+                echo -e "${RED}  - $file${NC}"
+            done
             echo ""
             echo "To proceed, you can:"
             echo "1. Remove the sensitive data from the files"
             echo "2. Use --action=warn to allow the commit with warnings"
             echo "3. Add files to .gitignore if they should never be committed"
+            echo "4. Set SHOW_LINE_CONTENT=false to hide sensitive content in output"
             exit 1
             ;;
         "unstage-files")
-            echo -e "${YELLOW}📝 Files with sensitive data have been unstaged.${NC}"
+            echo -e "${YELLOW}📝 Files with sensitive data have been unstaged:${NC}"
+            for file in "${FILES_WITH_ISSUES[@]}"; do
+                echo -e "${YELLOW}  - $file${NC}"
+            done
             echo "Review the changes and commit again after removing sensitive data."
             exit 1
             ;;
         "unstage-lines")
             echo -e "${YELLOW}📝 Please review and selectively stage your changes using 'git add -p'.${NC}"
+            echo -e "${YELLOW}Files with issues:${NC}"
+            for file in "${FILES_WITH_ISSUES[@]}"; do
+                echo -e "${YELLOW}  - $file${NC}"
+            done
             exit 1
             ;;
     esac
