@@ -1,4 +1,8 @@
 #cloud-config
+
+package_update: true
+package_upgrade: false
+
 users:
   - name: bruno
     groups: users, admin
@@ -9,8 +13,11 @@ users:
 packages:
   - fail2ban
   - ufw
-package_update: true
-package_upgrade: true
+  #for opencode	
+  - curl
+  - git
+  - unzip
+  - ca-certificates
 write_files:
   - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
     content: |
@@ -25,9 +32,61 @@ write_files:
       AllowAgentForwarding no
       AuthorizedKeysFile .ssh/authorized_keys
       AllowUsers bruno
+
+
+
+
+  - path: /etc/profile.d/opencode.sh
+    permissions: '0644'
+    owner: root:root
+    content: |
+      # Replace these with real keys or inject via your cloud's user-data
+      #export ANTHROPIC_API_KEY="CHANGEME"
+      #export OPENAI_API_KEY="CHANGEME"
+      #export GOOGLE_API_KEY="CHANGEME"
+      #export GROQ_API_KEY="CHANGEME"
+      #export OPENROUTER_API_KEY="CHANGEME"
+      # Optionally pin a default model in provider/model form (also supported via flags)
+      # export OPENCODE_MODEL="x-ai/grok-code-fast-1"
+
+  - path: /home/bruno/.config/opencode/opencode.json
+    permissions: '0644'
+    owner: bruno:bruno
+    content: |
+      {
+        "$schema": "https://opencode.ai/config.json",
+        "mcp": {
+          /* Example MCP wiring (disabled by default):
+          "brightData": {
+            "type": "local",
+            "enabled": false,
+            "command": ["npx","-y","@brightdata/mcp"],
+            "environment": {
+              "API_TOKEN": "REPLACE_ME",
+              "PRO_MODE": "true"
+            }
+          }
+          */
+        }
+      }
+
+      
 runcmd:
   - printf "[sshd]\nenabled = true\nport = ssh, 2222\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
   - systemctl enable fail2ban
   - ufw allow 2222
   - ufw enable
   - reboot
+  
+  # Install opencode for the bruno user
+  - [ bash, -lc, 'su - bruno -c "curl -fsSL https://opencode.ai/install | bash"' ]
+
+  # Ensure “ubuntu” owns its config directory (adjust user if your image differs)
+  - [ bash, -lc, 'mkdir -p /home/bruno/.config/opencode && chown -R bruno:bruno /home/bruno/.config/opencode' ]
+
+  # Verify install and preflight model discovery (non-fatal)
+  - [ bash, -lc, 'opencode --version || /usr/local/bin/opencode --version' ]
+  - [ bash, -lc, 'su - bruno -c "opencode models | head -n 20 || true"' ]
+
+  # Optional: example non-interactive run for smoke test (no TUI)
+  # - [ bash, -lc, 'su - ubuntu -c "OPENCODE_MODEL=${OPENCODE_MODEL:-anthropic/claude-3-5-sonnet-latest} opencode run -m \"$OPENCODE_MODEL\" \"say hello\" || true"' ]
