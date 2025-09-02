@@ -27,7 +27,10 @@ write_files:
       KbdInteractiveAuthentication no
       ChallengeResponseAuthentication no
       MaxAuthTries 2
-      AllowTcpForwarding no
+
+      #for vscode remote
+      AllowTcpForwarding yes
+      
       X11Forwarding no
       AllowAgentForwarding no
       AuthorizedKeysFile .ssh/authorized_keys
@@ -47,7 +50,7 @@ write_files:
       #export GROQ_API_KEY="CHANGEME"
       #export OPENROUTER_API_KEY="CHANGEME"
       # Optionally pin a default model in provider/model form (also supported via flags)
-      # export OPENCODE_MODEL="x-ai/grok-code-fast-1"
+      export OPENCODE_MODEL="x-ai/grok-code-fast-1"
 
   - path: /home/bruno/.config/opencode/opencode.json
     permissions: '0644'
