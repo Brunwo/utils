@@ -79,6 +79,8 @@ runcmd:
   - systemctl enable fail2ban
   - ufw allow 2222
   - ufw enable
+  - apt update && apt install -y docker.io
+  - usermod -aG docker bruno
   - reboot
   
   # Install opencode for the bruno user
