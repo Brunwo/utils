@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
+
+#alternate shebang if depts ?
+##!/usr/bin/env -S uv run --script
+
 """
 Web Scraper Tool using Jina AI Markdown URL Prefix
 
 This tool takes a URL, prefixes it with Jina AI's markdown service,
 fetches the content, and outputs the markdown version.
+
+could also implement SERP via "https://s.jina.ai/?q=Jina+AI" \
+  -H "X-Respond-With: no-content"
+
 """
 
 import sys
